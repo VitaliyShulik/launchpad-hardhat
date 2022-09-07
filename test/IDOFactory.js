@@ -1,11 +1,13 @@
 const { expect } = require("chai");
 
-const { loadFixture } = require("@nomicfoundation/hardhat-network-helpers");
+const { loadFixture, time } = require("@nomicfoundation/hardhat-network-helpers");
+
 const { ethers } = require("hardhat");
 
 const feeToken = "0x7ed59478Dd0c9C8417b64FC4f10e4F9cCA9C41e4"; // Openzeppelin ERC20Burnable token address.
 const feeAmount = "0"; // Claim fee amount number of feeTokens when create IDO.
 const burnPercent = "0"; // Burn some percent of feeTokens when create IDO. Divider is 100.
+const ether = ethers.BigNumber.from(10).pow(18);
 
 const createIDO = async (IDOFactoryContract, hardhatLockerFactory, rewardTokenContract) => {
     const { provider, BigNumber, getContractAt } = ethers;
@@ -21,7 +23,6 @@ const createIDO = async (IDOFactoryContract, hardhatLockerFactory, rewardTokenCo
     const maxETHInvest = BigNumber.from(2);
 
     const tokenDenominator = BigNumber.from(10).pow(decimals);
-    const ether = BigNumber.from(10).pow(18);
 
     const capacity = [
       softCap.mul(ether).toHexString(),
@@ -124,10 +125,39 @@ describe("IDOFactory contract", function () {
   });
 
   describe("Check IDO pools", function () {
-    it("Create IDO pool and check default values", async function () {
-      const { IDOPoolContract } = await loadFixture(deployIDOPoolFixture);
+    it("Should Invest ETH, Reach hard cap, Claim tokens, Lock LP tokens and witdraw rest ETH without LockerFee", async function () {
+      const { IDOPoolContract, hardhatLockerFactory, rewardTokenContract, owner, addr1 } = await loadFixture(deployIDOPoolFixture);
 
-      console.log('IDOPool address', IDOPoolContract.address)
+      // advance time by one minute and mine a new block to start IDO
+      await time.increase(60);
+
+      // buy 2000 tokens for 2 Ethers and reach hard cap
+      const ethForPayment = ether.mul(2).toHexString();
+      await IDOPoolContract.connect(addr1).pay({ value: ethForPayment });
+
+      // Invest ETH and check invested ETH
+      const IDOUserInfo = await IDOPoolContract.userInfo(addr1.address)
+      expect(IDOUserInfo.totalInvestedETH.toHexString()).to.equal(ethForPayment);
+
+      // Check IDO hard cap has reached
+      const IDOCapacity = await IDOPoolContract.capacity();
+      expect(IDOCapacity.hardCap).to.equal(await IDOPoolContract.totalInvestedETH());
+
+      // advance time by one minute and mine a new block to end IDO
+      await time.increase(60);
+
+      // Claim tokens and check balance of addr1
+      await IDOPoolContract.connect(addr1).claim();
+      expect(IDOUserInfo.total).to.equal(await rewardTokenContract.balanceOf(addr1.address));
+
+      // Lock LP tokens and witdraw rest ETH with withdrawETH methods
+      console.log('owner address', owner.address);
+      console.log('addr1 address', addr1.address);
+      console.log('hardhatLockerFactory address', addr1.address);
+      console.log('rewardTokenContract address', rewardTokenContract.address);
+      const tx = await IDOPoolContract.withdrawETH();
+      const withdrawETHtx = await tx.wait();
+      console.log('withdrawETHtx', withdrawETHtx);
 
     });
   })

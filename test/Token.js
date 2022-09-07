@@ -28,10 +28,6 @@ describe("Token contract", function () {
     const Token = await ethers.getContractFactory("Token");
     const [owner, addr1, addr2] = await ethers.getSigners();
 
-    const { provider } = ethers;
-    console.log(await provider.getBlockNumber());
-
-
     // To deploy our contract, we just have to call Token.deploy() and await
     // its deployed() method, which happens onces its transaction has been
     // mined.
