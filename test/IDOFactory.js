@@ -125,6 +125,43 @@ describe("IDOFactory contract", function () {
   });
 
   describe("Check IDO pools", function () {
+
+    it("Should Invest ETH, Reach hard cap, Claim tokens, Lock LP tokens and witdraw rest ETH with LockerFee", async function () {
+      const { IDOPoolContract, hardhatLockerFactory, rewardTokenContract, owner, addr1 } = await loadFixture(deployIDOPoolFixture);
+
+      const lockerFeeETH = ether.mul(1).toHexString();
+      await hardhatLockerFactory.setFee(lockerFeeETH);
+
+      // advance time by one minute and mine a new block to start IDO
+      await time.increase(60);
+
+      // buy 2000 tokens for 2 Ethers and reach hard cap
+      const ethForPayment = ether.mul(2).toHexString();
+      await IDOPoolContract.connect(addr1).pay({ value: ethForPayment });
+
+      // Invest ETH and check invested ETH
+      const IDOUserInfo = await IDOPoolContract.userInfo(addr1.address)
+      expect(IDOUserInfo.totalInvestedETH.toHexString()).to.equal(ethForPayment);
+
+      // Check IDO hard cap has reached
+      const IDOCapacity = await IDOPoolContract.capacity();
+      expect(IDOCapacity.hardCap).to.equal(await IDOPoolContract.totalInvestedETH());
+
+      // advance time by one minute and mine a new block to end IDO
+      await time.increase(60);
+
+      // Claim tokens and check balance of addr1
+      await IDOPoolContract.connect(addr1).claim();
+      expect(IDOUserInfo.total).to.equal(await rewardTokenContract.balanceOf(addr1.address));
+
+      // Lock LP tokens and witdraw rest ETH with withdrawETH methods
+      const tx = await IDOPoolContract.withdrawETH({ value: lockerFeeETH });
+      const withdrawETHtx = await tx.wait();
+      console.log('lockerAddress', withdrawETHtx.events[12].address); // 12 index interacts with lockerAddress
+      console.log('lpTokenAddress', withdrawETHtx.events[13].address); // 13 index interacts with lpTokenAddress
+
+    });
+
     it("Should Invest ETH, Reach hard cap, Claim tokens, Lock LP tokens and witdraw rest ETH without LockerFee", async function () {
       const { IDOPoolContract, hardhatLockerFactory, rewardTokenContract, owner, addr1 } = await loadFixture(deployIDOPoolFixture);
 
@@ -151,14 +188,12 @@ describe("IDOFactory contract", function () {
       expect(IDOUserInfo.total).to.equal(await rewardTokenContract.balanceOf(addr1.address));
 
       // Lock LP tokens and witdraw rest ETH with withdrawETH methods
-      console.log('owner address', owner.address);
-      console.log('addr1 address', addr1.address);
-      console.log('hardhatLockerFactory address', addr1.address);
-      console.log('rewardTokenContract address', rewardTokenContract.address);
       const tx = await IDOPoolContract.withdrawETH();
       const withdrawETHtx = await tx.wait();
-      console.log('withdrawETHtx', withdrawETHtx);
+      console.log('lockerAddress', withdrawETHtx.events[12].address); // 12 index interacts with lockerAddress
+      console.log('lpTokenAddress', withdrawETHtx.events[13].address); // 13 index interacts with lpTokenAddress
 
     });
   })
+
 });

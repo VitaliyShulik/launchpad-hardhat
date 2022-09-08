@@ -213,6 +213,8 @@ contract IDOPool is Ownable, ReentrancyGuard {
         uint256 balance = address(this).balance;
 
         if ( lockInfo.lpPercentage > 0 && listingRate > 0 ) {
+            // if TokenLockerFactory has fee we should provide there fee by msg.value and sub it from balance for correct execution
+            balance -= msg.value;
             uint256 ethForLP = (balance * lockInfo.lpPercentage)/100;
             uint256 ethWithdraw = balance - ethForLP;
 
@@ -244,6 +246,8 @@ contract IDOPool is Ownable, ReentrancyGuard {
                 );
             } else {
                 lpToken.transfer(msg.sender, liquidity);
+                // return msg.value along with eth to output if someone sent it wrong
+                ethWithdraw += msg.value;
             }
 
             // Withdraw rest ETH
