@@ -74,11 +74,14 @@ contract IDOPool is Ownable, ReentrancyGuard {
         FinInfo memory _finInfo,
         Timestamps memory _timestamps,
         DEXInfo memory _dexInfo,
+        address _lockerFactoryAddress,
         string memory _metadataURL
     ) {
 
         rewardToken = _rewardToken;
         decimals = rewardToken.decimals();
+        lockerFactory = TokenLockerFactory(_lockerFactoryAddress);
+
 
         finInfo = _finInfo;
 
