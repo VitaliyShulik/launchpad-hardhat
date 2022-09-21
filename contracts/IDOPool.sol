@@ -122,6 +122,7 @@ contract IDOPool is Ownable, ReentrancyGuard {
 
         uint256 tokenAmount = getTokenAmount(msg.value);
 
+        totalInvestedETH = totalInvestedETH.add(msg.value);
         tokensForDistribution = tokensForDistribution.add(tokenAmount);
         user.totalInvestedETH = user.totalInvestedETH.add(msg.value);
         user.total = user.total.add(tokenAmount);

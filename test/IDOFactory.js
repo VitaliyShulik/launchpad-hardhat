@@ -41,32 +41,30 @@ const createIDO = async (FeeToken, IDOFactory, LockerFactory, RewardToken) => {
     const minETHInvest = BigNumber.from(2);
     const maxETHInvest = BigNumber.from(2);
 
-    const capacity = [
+    const finInfo = [
+      tokenRate.mul(rewardTokenInfo.denominator).toHexString(),
       softCap.mul(ether).toHexString(),
       hardCap.mul(ether).toHexString(),
       minETHInvest.div(ether).toHexString(), // use div 'cause I need to set 0.5 ETH as minETHInvest
       maxETHInvest.mul(ether).toHexString(),
+      listingRate.mul(rewardTokenInfo.denominator).toHexString(),
+      liquidityPercentage,
     ];
 
     const currentBlock = await provider.getBlock();
-    const time = [
+    const timestamps = [
       currentBlock.timestamp + 60, // start IDO
-      currentBlock.timestamp + 120, // stop IDO
+      currentBlock.timestamp + 120, // end IDO
       currentBlock.timestamp + 180, // unlock IDO tokens
     ];
 
-    const uniswap = [
+    const dexInfo = [
       "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D", // Router
       "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f", // Factory
       "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6", // WETH
     ];
 
-    const lockInfo = [
-      liquidityPercentage,
-      LockerFactory.address,
-    ];
-
-    const IDOMetadataURL = "https://test-ipfs.infura-ipfs.io/ipfs/QmYgpYtynEi6qaS4SkdmsdsAPLn6meLB4jqAir8gR52sm"; // Usually pinata url
+    const metadataURL = "https://test-ipfs.infura-ipfs.io/ipfs/QmYgpYtynEi6qaS4SkdmsdsAPLn6meLB4jqAir8gR52sm"; // Usually pinata url
 
     const IDOPoolTokenAmount = hardCap.mul(tokenRate);
     const LockedTokenAmount = hardCap.mul(liquidityPercentage).mul(listingRate).div(100);
@@ -83,13 +81,11 @@ const createIDO = async (FeeToken, IDOFactory, LockerFactory, RewardToken) => {
 
     let tx = await IDOFactory.createIDO(
       RewardToken.address,
-      tokenRate.mul(rewardTokenInfo.denominator).toHexString(),
-      listingRate.mul(rewardTokenInfo.denominator).toHexString(),
-      capacity,
-      time,
-      uniswap,
-      lockInfo,
-      IDOMetadataURL
+      finInfo,
+      timestamps,
+      dexInfo,
+      LockerFactory.address,
+      metadataURL
     );
 
     tx = await tx.wait();
@@ -189,8 +185,8 @@ describe("IDOFactory contract", function () {
       expect(IDOUserInfo.totalInvestedETH.toHexString()).to.equal(ethForPayment);
 
       // Check IDO hard cap has reached
-      const IDOCapacity = await IDOPoolContract.capacity();
-      expect(IDOCapacity.hardCap).to.equal(await IDOPoolContract.totalInvestedETH());
+      const IDOFinInfo = await IDOPoolContract.finInfo();
+      expect(IDOFinInfo.hardCap).to.equal(await IDOPoolContract.totalInvestedETH());
 
       // advance time by one minute and mine a new block to end IDO
       await time.increase(60);
@@ -227,8 +223,8 @@ describe("IDOFactory contract", function () {
       expect(IDOUserInfo.totalInvestedETH.toHexString()).to.equal(ethForPayment);
 
       // Check IDO hard cap has reached
-      const IDOCapacity = await IDOPoolContract.capacity();
-      expect(IDOCapacity.hardCap).to.equal(await IDOPoolContract.totalInvestedETH());
+      const IDOFinInfo = await IDOPoolContract.finInfo();
+      expect(IDOFinInfo.hardCap).to.equal(await IDOPoolContract.totalInvestedETH());
 
       // advance time by one minute and mine a new block to end IDO
       await time.increase(60);
@@ -281,8 +277,8 @@ describe("IDOFactory contract", function () {
       expect(IDOUserInfo.totalInvestedETH.toHexString()).to.equal(ethForPayment);
 
       // Check IDO hard cap has reached
-      const IDOCapacity = await IDOPoolContract.capacity();
-      expect(IDOCapacity.hardCap).to.equal(await IDOPoolContract.totalInvestedETH());
+      const IDOFinInfo = await IDOPoolContract.finInfo();
+      expect(IDOFinInfo.hardCap).to.equal(await IDOPoolContract.totalInvestedETH());
 
       // advance time by one minute and mine a new block to end IDO
       await time.increase(60);
@@ -336,8 +332,8 @@ describe("IDOFactory contract", function () {
       expect(IDOUserInfo.totalInvestedETH.toHexString()).to.equal(ethForPayment);
 
       // Check IDO hard cap has reached
-      const IDOCapacity = await IDOPoolContract.capacity();
-      expect(IDOCapacity.hardCap).to.equal(await IDOPoolContract.totalInvestedETH());
+      const IDOFinInfo = await IDOPoolContract.finInfo();
+      expect(IDOFinInfo.hardCap).to.equal(await IDOPoolContract.totalInvestedETH());
 
       // advance time by one minute and mine a new block to end IDO
       await time.increase(60);
