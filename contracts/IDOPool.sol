@@ -82,7 +82,6 @@ contract IDOPool is Ownable, ReentrancyGuard {
         decimals = rewardToken.decimals();
         lockerFactory = TokenLockerFactory(_lockerFactoryAddress);
 
-
         finInfo = _finInfo;
 
         setTimestamps(_timestamps);
@@ -239,9 +238,14 @@ contract IDOPool is Ownable, ReentrancyGuard {
      function withdrawNotSoldTokens() external onlyOwner {
         require(distributed, "Withdraw allowed after distributed.");
 
-        uint256 balance = rewardToken.balanceOf(address(this));
+        uint256 balance = getNotSoldToken();
         require(balance > 0, "The IDO pool has not unsold tokens.");
-        rewardToken.safeTransfer(msg.sender, balance.add(distributedTokens).sub(tokensForDistribution));
+        rewardToken.safeTransfer(msg.sender, balance);
+    }
+
+    function getNotSoldToken() public view returns(uint256){
+        uint256 balance = rewardToken.balanceOf(address(this));
+        return balance.add(distributedTokens).sub(tokensForDistribution);
     }
 
     function refundTokens() external onlyOwner {
@@ -258,7 +262,7 @@ contract IDOPool is Ownable, ReentrancyGuard {
         view
         returns (uint256)
     {
-        return ethAmount.mul(10**decimals).div(finInfo.tokenPrice);
+        return ethAmount.mul(finInfo.tokenPrice).div(10**decimals);
     }
 
     function getListingAmount(uint256 ethAmount)
@@ -266,7 +270,7 @@ contract IDOPool is Ownable, ReentrancyGuard {
         view
         returns (uint256)
     {
-        return ethAmount.mul(10**decimals).div(finInfo.listingPrice);
+        return ethAmount.mul(finInfo.listingPrice).div(10**decimals);
     }
 
     /**
