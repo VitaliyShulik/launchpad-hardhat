@@ -5,6 +5,8 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 
+// import "hardhat/console.sol";
+
 import "./IDOPool.sol";
 
 contract IDOFactory is Ownable {
@@ -15,7 +17,7 @@ contract IDOFactory is Ownable {
     ERC20Burnable public feeToken;
     address public feeWallet;
     uint256 public feeAmount;
-    uint256 public burnPercent;
+    uint256 public burnPercent; // use this state only if your token is ERC20Burnable and has burnFrom method
     uint256 public divider;
 
     event IDOCreated(
@@ -89,7 +91,17 @@ contract IDOFactory is Ownable {
                 _metadataURL
             );
 
-        uint256 transferAmount = getTokenAmount(_finInfo.hardCap, _finInfo.tokenPrice) + getTokenAmount(_finInfo.hardCap * _finInfo.lpInterestRate / 100, _finInfo.listingPrice);
+        uint8 tokenDecimals = _rewardToken.decimals();
+
+        uint256 transferAmount = getTokenAmount(_finInfo.hardCap, _finInfo.tokenPrice, tokenDecimals);
+
+        if (_finInfo.lpInterestRate > 0 && _finInfo.listingPrice > 0) {
+            transferAmount += getTokenAmount(_finInfo.hardCap * _finInfo.lpInterestRate / 100, _finInfo.listingPrice, tokenDecimals);
+        }
+        // console.log(
+        //     "transferAmount is %s",
+        //     transferAmount
+        // );
 
         idoPool.transferOwnership(msg.sender);
 
@@ -108,33 +120,32 @@ contract IDOFactory is Ownable {
 
 
         if(feeAmount > 0){
-            uint256 burnAmount = feeAmount.mul(burnPercent).div(divider);
+            if (burnPercent > 0){
+                uint256 burnAmount = feeAmount.mul(burnPercent).div(divider);
 
-            feeToken.safeTransferFrom(
-                msg.sender,
-                feeWallet,
-                feeAmount.sub(burnAmount)
-            );
+                feeToken.safeTransferFrom(
+                    msg.sender,
+                    feeWallet,
+                    feeAmount.sub(burnAmount)
+                );
 
-            feeToken.burnFrom(msg.sender, burnAmount);
-
+                feeToken.burnFrom(msg.sender, burnAmount);
+            } else {
+                feeToken.safeTransferFrom(
+                    msg.sender,
+                    feeWallet,
+                    feeAmount
+                );
+            }
         }
     }
 
-    function getTokenAmount(uint256 _ethAmount, uint256 _rate)
+    function getTokenAmount(uint256 ethAmount, uint256 oneTokenInWei, uint8 decimals)
         internal
-        view
+        pure
         returns (uint256)
     {
-        return _ethAmount.mul(_rate).div(10 ** 18);
-    }
-
-    function getTokenAmount(uint256 ethAmount, uint8 decimals, uint256 price)
-        internal
-        view
-        returns (uint256)
-    {
-        return ethAmount.mul(10**decimals).div(price);
+        return (ethAmount / oneTokenInWei) * 10**decimals;
     }
 
     function isContract(address _addr) private view returns (bool) {

@@ -33,21 +33,25 @@ const getTokenInfo = async (tokenContract) => {
 const createIDO = async (FeeToken, IDOFactory, LockerFactory, RewardToken) => {
     const rewardTokenInfo = await getTokenInfo(RewardToken);
 
-    const tokenRate = BigNumber.from(1000); // Tokens per eth
-    const listingRate = BigNumber.from(500); // Tokens per eth
+    const tokenRate = BigNumber.from(1000).mul(rewardTokenInfo.denominator); // Tokens per eth
+    const listingRate = BigNumber.from(500).mul(rewardTokenInfo.denominator); // Tokens per eth
     const liquidityPercentage = 60;
-    const softCap = BigNumber.from(1); // in ETH
-    const hardCap = BigNumber.from(2); // in ETH
-    const minETHInvest = BigNumber.from(2);
-    const maxETHInvest = BigNumber.from(2);
+    const softCap = BigNumber.from(1).mul(ether); // in ETH
+    const hardCap = BigNumber.from(2).mul(ether); // in ETH
+    const minETHInvest = BigNumber.from(2).div(ether); // use div 'cause I need to set 0.5 ETH as minETHInvest
+    const maxETHInvest = BigNumber.from(2).mul(ether);
+
+
+    const oneTokenInWei = ether.div(tokenRate.div(rewardTokenInfo.denominator));
+    const oneListingTokeninWei = ether.div(listingRate.div(rewardTokenInfo.denominator));
 
     const finInfo = [
-      tokenRate.mul(rewardTokenInfo.denominator).toHexString(),
-      softCap.mul(ether).toHexString(),
-      hardCap.mul(ether).toHexString(),
-      minETHInvest.div(ether).toHexString(), // use div 'cause I need to set 0.5 ETH as minETHInvest
-      maxETHInvest.mul(ether).toHexString(),
-      listingRate.mul(rewardTokenInfo.denominator).toHexString(),
+      oneTokenInWei.toHexString(),
+      softCap.toHexString(),
+      hardCap.toHexString(),
+      minETHInvest.toHexString(),
+      maxETHInvest.toHexString(),
+      oneListingTokeninWei.toHexString(),
       liquidityPercentage,
     ];
 
@@ -64,10 +68,10 @@ const createIDO = async (FeeToken, IDOFactory, LockerFactory, RewardToken) => {
       "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6", // WETH
     ];
 
-    const metadataURL = "https://test-ipfs.infura-ipfs.io/ipfs/QmYgpYtynEi6qaS4SkdmsdsAPLn6meLB4jqAir8gR52sm"; // Usually pinata url
+    const metadataURL = "https://test-ipfs.infura-ipfs.io/ipfs/QmRCWfBMQWLcsVY15mbPivc6EKhR8FLzJ5o4Rcw3PPRnLu"; // Usually pinata url
 
-    const IDOPoolTokenAmount = hardCap.mul(tokenRate);
-    const LockedTokenAmount = hardCap.mul(liquidityPercentage).mul(listingRate).div(100);
+    const IDOPoolTokenAmount = hardCap.div(oneTokenInWei);
+    const LockedTokenAmount = hardCap.div(oneListingTokeninWei).mul(liquidityPercentage).div(100);
 
     const requiredToken = IDOPoolTokenAmount.add(LockedTokenAmount).mul(rewardTokenInfo.denominator);
 
